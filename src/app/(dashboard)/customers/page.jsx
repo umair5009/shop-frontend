@@ -26,7 +26,10 @@ export default function CustomersPage() {
     phone: "",
     email: "",
     address: "",
-    creditLimit: "",
+    area: "",
+    cnic: "",
+    licenseNo: "",
+    customerNo: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,7 +57,10 @@ export default function CustomersPage() {
         phone: customer.phone || "",
         email: customer.email || "",
         address: customer.address || "",
-        creditLimit: customer.creditLimit || "",
+        area: customer.area || "",
+        cnic: customer.cnic || "",
+        licenseNo: customer.licenseNo || "",
+        customerNo: customer.customerNo || "",
       });
     } else {
       setEditingCustomer(null);
@@ -63,7 +69,10 @@ export default function CustomersPage() {
         phone: "",
         email: "",
         address: "",
-        creditLimit: "",
+        area: "",
+        cnic: "",
+        licenseNo: "",
+        customerNo: "",
       });
     }
     setDialogOpen(true);
@@ -281,16 +290,48 @@ export default function CustomersPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="creditLimit">Credit Limit</Label>
-              <Input
-                id="creditLimit"
-                type="number"
-                step="0.01"
-                value={formData.creditLimit}
-                onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
-                placeholder="0.00"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="area">Area</Label>
+                <Input
+                  id="area"
+                  value={formData.area}
+                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  placeholder="Area"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="customerNo">Customer #</Label>
+                <Input
+                  id="customerNo"
+                  value={formData.customerNo}
+                  onChange={(e) => setFormData({ ...formData, customerNo: e.target.value })}
+                  placeholder="Customer number"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cnic">CNIC</Label>
+                <Input
+                  id="cnic"
+                  value={formData.cnic}
+                  onChange={(e) => setFormData({ ...formData, cnic: e.target.value })}
+                  placeholder="CNIC number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="licenseNo">License #</Label>
+                <Input
+                  id="licenseNo"
+                  value={formData.licenseNo}
+                  onChange={(e) => setFormData({ ...formData, licenseNo: e.target.value })}
+                  placeholder="License number"
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">

@@ -28,7 +28,8 @@ export default function ProductsPage() {
     stock: "",
     minStock: "",
     barcode: "",
-    unit: "pcs",
+    unit: "PCS",
+    pcsPerUnit: "1",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,7 +64,8 @@ export default function ProductsPage() {
         stock: product.stock,
         minStock: product.minStock || "",
         barcode: product.barcode || "",
-        unit: product.unit || "pcs",
+        unit: product.unit || "PCS",
+        pcsPerUnit: product.pcsPerUnit || "1",
       });
     } else {
       setEditingProduct(null);
@@ -75,7 +77,8 @@ export default function ProductsPage() {
         stock: "",
         minStock: "",
         barcode: "",
-        unit: "pcs",
+        unit: "PCS",
+        pcsPerUnit: "1",
       });
     }
     setDialogOpen(true);
@@ -97,6 +100,7 @@ export default function ProductsPage() {
         sellingPrice: parseFloat(formData.sellingPrice),
         stock: parseInt(formData.stock),
         minStock: formData.minStock ? parseInt(formData.minStock) : undefined,
+        pcsPerUnit: parseInt(formData.pcsPerUnit) || 1,
       };
 
       if (editingProduct) {
@@ -334,12 +338,27 @@ export default function ProductsPage() {
                   value={formData.unit}
                   onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 >
-                  <option value="pcs">Pieces</option>
-                  <option value="kg">Kilogram</option>
-                  <option value="ltr">Liter</option>
-                  <option value="box">Box</option>
-                  <option value="pack">Pack</option>
+                  <option value="PCS">PCS (Pieces)</option>
+                  <option value="CTN">CTN (Cotton/Carton)</option>
+                  <option value="KG">KG (Kilogram)</option>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pcsPerUnit">Pieces Per Unit</Label>
+                <Input
+                  id="pcsPerUnit"
+                  type="number"
+                  min="1"
+                  value={formData.pcsPerUnit}
+                  onChange={(e) => setFormData({ ...formData, pcsPerUnit: e.target.value })}
+                  placeholder="1"
+                />
+                <p className="text-xs text-zinc-500">
+                  {formData.unit === "PCS" ? "Keep as 1 for pieces" :
+                   formData.unit === "CTN" ? "How many pieces per cotton/carton?" :
+                   "How many pieces per kg?"}
+                </p>
               </div>
             </div>
 

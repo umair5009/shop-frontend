@@ -26,6 +26,10 @@ export default function SuppliersPage() {
     phone: "",
     email: "",
     address: "",
+    area: "",
+    cnic: "",
+    licenseNo: "",
+    supplierNo: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -53,6 +57,10 @@ export default function SuppliersPage() {
         phone: supplier.phone || "",
         email: supplier.email || "",
         address: supplier.address || "",
+        area: supplier.area || "",
+        cnic: supplier.cnic || "",
+        licenseNo: supplier.licenseNo || "",
+        supplierNo: supplier.supplierNo || "",
       });
     } else {
       setEditingSupplier(null);
@@ -61,6 +69,10 @@ export default function SuppliersPage() {
         phone: "",
         email: "",
         address: "",
+        area: "",
+        cnic: "",
+        licenseNo: "",
+        supplierNo: "",
       });
     }
     setDialogOpen(true);
@@ -255,6 +267,51 @@ export default function SuppliersPage() {
                 placeholder="Optional"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="area">Area</Label>
+                <Input
+                  id="area"
+                  value={formData.area}
+                  onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                  placeholder="Area"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="supplierNo">Supplier #</Label>
+                <Input
+                  id="supplierNo"
+                  value={formData.supplierNo}
+                  onChange={(e) => setFormData({ ...formData, supplierNo: e.target.value })}
+                  placeholder="Supplier number"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cnic">CNIC</Label>
+                <Input
+                  id="cnic"
+                  value={formData.cnic}
+                  onChange={(e) => setFormData({ ...formData, cnic: e.target.value })}
+                  placeholder="CNIC number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="licenseNo">License #</Label>
+                <Input
+                  id="licenseNo"
+                  value={formData.licenseNo}
+                  onChange={(e) => setFormData({ ...formData, licenseNo: e.target.value })}
+                  placeholder="License number"
+                />
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={handleCloseDialog}>Cancel</Button>
               <Button type="submit" disabled={submitting}>

@@ -57,6 +57,34 @@ export default function SalesPage() {
     }
   };
 
+  const numberToWords = (num) => {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+    if (num === 0) return 'Zero';
+
+    const convertHundreds = (n) => {
+      if (n === 0) return '';
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertHundreds(n % 100) : '');
+    };
+
+    const convertThousands = (n) => {
+      if (n < 1000) return convertHundreds(n);
+      return convertHundreds(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convertHundreds(n % 1000) : '');
+    };
+
+    const convertLakhs = (n) => {
+      if (n < 100000) return convertThousands(n);
+      return convertHundreds(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convertThousands(n % 100000) : '');
+    };
+
+    return convertLakhs(Math.floor(num)) + ' Only';
+  };
+
   const printBill = (printData) => {
     const printWindow = window.open("", "_blank");
     printWindow.document.write(`
@@ -64,78 +92,246 @@ export default function SalesPage() {
         <head>
           <title>Invoice - ${printData.invoiceNumber}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { text-align: center; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            @page { size: A4; margin: 10mm; }
+            body {
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              margin: 0;
+              padding: 15px;
+            }
+            .header { text-align: center; margin-bottom: 10px; }
+            .header h1 { font-size: 18px; margin: 0; }
+            .header p { font-size: 10px; margin: 2px 0; }
+            .invoice-title {
+              text-align: center;
+              border: 2px solid #000;
+              padding: 5px;
+              margin: 10px 0;
+              font-size: 14px;
+              font-weight: bold;
+            }
+            .meta-section {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10px;
+            }
+            .meta-left, .meta-right { width: 48%; }
+            .meta-row {
+              display: flex;
+              margin-bottom: 3px;
+              font-size: 10px;
+            }
+            .meta-label {
+              width: 120px;
+              font-weight: bold;
+            }
+            .meta-value {
+              flex: 1;
+              border-bottom: 1px solid #000;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 10px 0;
+              font-size: 10px;
+            }
+            th, td {
+              border: 1px solid #000;
+              padding: 5px 4px;
+              text-align: left;
+            }
+            th {
+              background-color: #f0f0f0;
+              font-weight: bold;
+              text-align: center;
+            }
             .text-right { text-align: right; }
-            .total-row { font-weight: bold; }
+            .text-center { text-align: center; }
+            .summary {
+              display: flex;
+              justify-content: space-between;
+              margin: 10px 0;
+            }
+            .summary-left { width: 48%; }
+            .summary-right { width: 48%; }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 5px;
+              font-size: 11px;
+            }
+            .grand-total {
+              font-size: 16px;
+              font-weight: bold;
+              border: 2px solid #000;
+              padding: 8px;
+              margin: 10px 0;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              font-size: 10px;
+            }
           </style>
         </head>
         <body>
-          <h1>INVOICE</h1>
-          <p><strong>Invoice #:</strong> ${printData.invoiceNumber}</p>
-          <p><strong>Date:</strong> ${new Date(printData.date).toLocaleString()}</p>
-          <p><strong>Customer:</strong> ${printData.customer?.name || "Walk-in Customer"}</p>
-          <hr/>
+          <div class="header">
+            <h1>G.L TRADERS</h1>
+            <p>4 Haji Saeed Market Near 13M Office G.T Road Jehangira</p>
+            <p>Saiful Gul: 0322-9171401</p>
+          </div>
+
+          <div class="invoice-title">SALES INVOICE</div>
+
+          <div class="meta-section">
+            <div class="meta-left">
+              <div class="meta-row">
+                <span class="meta-label">Customer #:</span>
+                <span class="meta-value">${printData.customerNo || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Customer/Shop Name:</span>
+                <span class="meta-value">${printData.customer?.name || "Walk-in Customer"}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Address:</span>
+                <span class="meta-value">${printData.customer?.address || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Phone:</span>
+                <span class="meta-value">${printData.customer?.phone || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Area:</span>
+                <span class="meta-value">${printData.area || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Delivered By:</span>
+                <span class="meta-value">${printData.deliveredBy || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Booked By:</span>
+                <span class="meta-value">${printData.bookedBy || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">License #:</span>
+                <span class="meta-value">${printData.licenseNo || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">CNIC:</span>
+                <span class="meta-value">${printData.cnic || ''}</span>
+              </div>
+            </div>
+
+            <div class="meta-right">
+              <div class="meta-row">
+                <span class="meta-label">Invoice No:</span>
+                <span class="meta-value">${printData.invoiceNumber}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Invoice Date:</span>
+                <span class="meta-value">${new Date(printData.date).toLocaleDateString()}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Due Date:</span>
+                <span class="meta-value">${printData.dueDate ? new Date(printData.dueDate).toLocaleDateString() : ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Order No:</span>
+                <span class="meta-value">${printData.orderNo || ''}</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Page Number:</span>
+                <span class="meta-value">1 of 1</span>
+              </div>
+            </div>
+          </div>
+
           ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
-            <h3>${category}</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th class="text-right">Qty</th>
-                  <th class="text-right">Price</th>
-                  <th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${items.map(item => `
+            <div style="margin: 15px 0;">
+              <h3 style="font-size: 12px; margin: 5px 0; padding: 3px; background-color: #f0f0f0; border-left: 3px solid #000;">${category}</h3>
+              <table>
+                <thead>
                   <tr>
-                    <td>${item.name}</td>
-                    <td class="text-right">1*${item.qty}</td>
-                    <td class="text-right">Rs ${item.unitPrice.toFixed(2)}</td>
-                    <td class="text-right">Rs ${item.lineTotal.toFixed(2)}</td>
+                    <th style="width: 30%;">Item</th>
+                    <th style="width: 12%;">Price</th>
+                    <th style="width: 10%;">QTY</th>
+                    <th style="width: 10%;">CTN</th>
+                    <th style="width: 10%;">PCS</th>
+                    <th style="width: 10%;">KG</th>
+                    <th style="width: 18%;">Total Price</th>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${items.map(item => `
+                    <tr>
+                      <td>${item.name}</td>
+                      <td class="text-right">Rs ${item.unitPrice.toFixed(2)}</td>
+                      <td class="text-center">${item.qty}</td>
+                      <td class="text-center">${item.unit === 'CTN' || item.unit === 'BOX' ? item.qtyInUnits || 0 : 0}</td>
+                      <td class="text-center">${item.unit === 'PCS' ? item.qty : 0}</td>
+                      <td class="text-center">${item.unit === 'KG' ? item.qtyInUnits || 0 : 0}</td>
+                      <td class="text-right"><strong>Rs ${item.lineTotal.toFixed(2)}</strong></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
           `).join('')}
-          <table>
-            <tr class="total-row">
-              <td colspan="3" class="text-right">Gross Total:</td>
-              <td class="text-right">Rs ${printData.grossTotal.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td colspan="3" class="text-right">Discount:</td>
-              <td class="text-right">Rs ${printData.discountAmount.toFixed(2)}</td>
-            </tr>
-            <tr class="total-row">
-              <td colspan="3" class="text-right">Net Total:</td>
-              <td class="text-right">Rs ${printData.netTotal.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td colspan="3" class="text-right">Amount Paid:</td>
-              <td class="text-right">Rs ${printData.amountPaid.toFixed(2)}</td>
-            </tr>
-            <tr class="total-row">
-              <td colspan="3" class="text-right">Current Bill Balance:</td>
-              <td class="text-right">Rs ${printData.balance.toFixed(2)}</td>
-            </tr>
-            ${printData.customer ? `
-              <tr style="border-top: 2px solid #000;">
-                <td colspan="3" class="text-right"><strong>Previous Balance:</strong></td>
-                <td class="text-right"><strong>Rs ${(printData.previousBalance || 0).toFixed(2)}</strong></td>
-              </tr>
-              <tr class="total-row" style="background-color: #f9f9f9;">
-                <td colspan="3" class="text-right"><strong>Total Outstanding Balance:</strong></td>
-                <td class="text-right"><strong>Rs ${(printData.newBalance || 0).toFixed(2)}</strong></td>
-              </tr>
-            ` : ''}
-          </table>
-          <p style="text-align: center; margin-top: 30px;">Thank you for your business!</p>
-          <script>window.print(); window.onafterprint = () => window.close();</script>
+
+          <div class="summary">
+            <div class="summary-left">
+              <div style="font-size: 10px; margin-bottom: 5px;">
+                <strong>No. of items:</strong> ${printData.items?.length || 0}
+              </div>
+              <div style="font-size: 10px; margin-bottom: 5px;">
+                <strong>Gross:</strong> Rs ${printData.grossTotal.toFixed(2)}
+              </div>
+            </div>
+
+            <div class="summary-right">
+              <div class="total-row" style="border-bottom: 1px solid #000;">
+                <span>Gross Total:</span>
+                <span>Rs ${printData.grossTotal.toFixed(2)}</span>
+              </div>
+              <div class="total-row">
+                <span>Discount:</span>
+                <span>Rs ${printData.discountAmount.toFixed(2)}</span>
+              </div>
+              <div class="grand-total">
+                <div class="total-row">
+                  <span>Grand Total:</span>
+                  <span>Rs ${printData.netTotal.toFixed(2)}</span>
+                </div>
+              </div>
+              <div style="font-size: 10px; font-style: italic; margin-bottom: 10px; text-align: center;">
+                ${numberToWords(printData.netTotal)}
+              </div>
+              <div class="total-row" style="border-top: 1px solid #000; border-bottom: 1px solid #000;">
+                <span>Cash Received:</span>
+                <span>Rs ${printData.amountPaid.toFixed(2)}</span>
+              </div>
+              <div class="total-row">
+                <span>Previous Balance:</span>
+                <span>Rs ${(printData.previousBalance || 0).toFixed(2)}</span>
+              </div>
+              <div class="total-row" style="border-top: 2px solid #000; font-weight: bold; font-size: 12px; background-color: #f9f9f9; padding: 8px;">
+                <span>Net Balance:</span>
+                <span>Rs ${(printData.newBalance || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p style="margin-top: 20px; border-top: 1px solid #000; padding-top: 10px;">
+              Thank you for your business!
+            </p>
+          </div>
+
+          <script>
+            window.print();
+            window.onafterprint = () => window.close();
+          </script>
         </body>
       </html>
     `);
