@@ -25,7 +25,7 @@ export default function ProductsPage() {
     category: "",
     costPrice: "",
     sellingPrice: "",
-    stock: "",
+    stockInUnits: "", // Stock in CTN/KG (what user enters)
     minStock: "",
     barcode: "",
     unit: "PCS",
@@ -56,12 +56,17 @@ export default function ProductsPage() {
   const handleOpenDialog = (product = null) => {
     if (product) {
       setEditingProduct(product);
+      // Calculate stock in units from total pieces
+      const stockInUnits = product.unit !== "PCS" && product.pcsPerUnit > 1
+        ? Math.floor(product.stock / product.pcsPerUnit)
+        : product.stock;
+
       setFormData({
         name: product.name,
         category: product.category?._id || "",
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
-        stock: product.stock,
+        stockInUnits: stockInUnits.toString(),
         minStock: product.minStock || "",
         barcode: product.barcode || "",
         unit: product.unit || "PCS",
@@ -74,7 +79,7 @@ export default function ProductsPage() {
         category: "",
         costPrice: "",
         sellingPrice: "",
-        stock: "",
+        stockInUnits: "",
         minStock: "",
         barcode: "",
         unit: "PCS",
@@ -95,10 +100,13 @@ export default function ProductsPage() {
 
     try {
       const payload = {
-        ...formData,
+        name: formData.name,
+        category: formData.category,
+        barcode: formData.barcode,
+        unit: formData.unit,
         costPrice: parseFloat(formData.costPrice),
         sellingPrice: parseFloat(formData.sellingPrice),
-        stock: parseInt(formData.stock),
+        stockInUnits: parseInt(formData.stockInUnits) || 0, // Send stock in units (CTN/KG)
         minStock: formData.minStock ? parseInt(formData.minStock) : undefined,
         pcsPerUnit: parseInt(formData.pcsPerUnit) || 1,
       };
@@ -204,7 +212,16 @@ export default function ProductsPage() {
                     <TableCell className="text-right">{formatCurrency(product.sellingPrice)}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={product.stock <= (product.minStock || 10) ? "destructive" : "secondary"}>
-                        {product.stock} {product.unit}
+                        {product.unit !== 'PCS' && product.pcsPerUnit > 1 ? (
+                          <>
+                            {Math.floor(product.stock / product.pcsPerUnit)} {product.unit}
+                            <span className="text-xs ml-1 opacity-70">
+                              ({product.stock} pcs)
+                            </span>
+                          </>
+                        ) : (
+                          `${product.stock} pcs`
+                        )}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -309,15 +326,25 @@ export default function ProductsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="stock">Stock Quantity *</Label>
+                <Label htmlFor="stockInUnits">
+                  Stock Quantity {formData.unit !== "PCS" ? `(in ${formData.unit})` : ""} *
+                </Label>
                 <Input
-                  id="stock"
+                  id="stockInUnits"
                   type="number"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                  placeholder="0"
+                  value={formData.stockInUnits}
+                  onChange={(e) => setFormData({ ...formData, stockInUnits: e.target.value })}
+                  placeholder={formData.unit === "PCS" ? "Enter pieces" : `Enter number of ${formData.unit}`}
                   required
                 />
+                <p className="text-xs text-zinc-500">
+                  {formData.unit === "PCS"
+                    ? "Enter total pieces in stock"
+                    : formData.stockInUnits && formData.pcsPerUnit
+                    ? `= ${parseInt(formData.stockInUnits) * parseInt(formData.pcsPerUnit)} pieces total (calculated automatically)`
+                    : `Enter stock in ${formData.unit} (e.g., 900 ${formData.unit}). Backend will calculate total pieces.`
+                  }
+                </p>
               </div>
 
               <div className="space-y-2">
