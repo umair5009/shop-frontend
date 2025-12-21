@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { customerAPI } from "@/lib/api";
+import { customerAPI, areaAPI } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Plus, Pencil, Trash2, Eye, Search } from "lucide-react";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
+  const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [ledgerDialogOpen, setLedgerDialogOpen] = useState(false);
@@ -40,8 +41,12 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await customerAPI.getAll({ page: 1, limit: 1000 });
+      const [response, areasResponse] = await Promise.all([
+        customerAPI.getAll({ page: 1, limit: 1000 }),
+        areaAPI.getAll()
+      ]);
       setCustomers(response.data.data.customers || []);
+      setAreas(areasResponse.data || []);
     } catch (error) {
       console.error("Error fetching customers:", error);
     } finally {
@@ -190,6 +195,7 @@ export default function CustomersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Area</TableHead>
                   <TableHead className="text-right">Balance</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -200,6 +206,7 @@ export default function CustomersPage() {
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.phone || "-"}</TableCell>
                     <TableCell>{customer.email || "-"}</TableCell>
+                    <TableCell>{customer.area || "-"}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={customer.balance > 0 ? "destructive" : "secondary"}>
                         {formatCurrency(customer.balance || 0)}
@@ -293,12 +300,19 @@ export default function CustomersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="area">Area</Label>
-                <Input
+                <select
                   id="area"
+                  className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
                   value={formData.area}
                   onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                  placeholder="Area"
-                />
+                >
+                  <option value="">Select Area</option>
+                  {areas.map((a) => (
+                    <option key={a._id} value={a.name}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">

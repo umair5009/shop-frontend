@@ -111,3 +111,10 @@ export const billAPI = {
   generate: (data) => api.post("/bill/generate", data),
 };
 
+export const areaAPI = {
+  getAll: () => api.get("/areas"),
+  create: (data) => api.post("/areas", data),
+  update: (id, data) => api.put(`/areas/${id}`, data),
+  delete: (id) => api.delete(`/areas/${id}`),
+};
+

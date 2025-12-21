@@ -8,13 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { productAPI, customerAPI, saleAPI } from "@/lib/api";
+import { productAPI, customerAPI, saleAPI, areaAPI } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Printer } from "lucide-react";
 
 export default function POSPage() {
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [selectedArea, setSelectedArea] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -42,12 +44,14 @@ export default function POSPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [productsRes, customersRes] = await Promise.all([
+      const [productsRes, customersRes, areasRes] = await Promise.all([
         productAPI.getAll({ page: 1, limit: 1000 }),
         customerAPI.getAll({ page: 1, limit: 1000 }),
+        areaAPI.getAll(),
       ]);
       setProducts(productsRes.data.data.products || []);
       setCustomers(customersRes.data.data.customers || []);
+      setAreas(areasRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -98,7 +102,7 @@ export default function POSPage() {
       const customer = customers.find(c => c._id === customerId);
       if (customer) {
         // Auto-fill customer details
-        setArea(customer.address || "");
+        setArea(customer.area || "");
         setCnic(customer.cnic || "");
         setLicenseNo(customer.licenseNo || "");
       }
@@ -142,7 +146,7 @@ export default function POSPage() {
   const calculateTotals = () => {
     const grossTotal = cart.reduce((sum, item) => sum + item.price * item.totalPcs, 0);
     let discountAmount = 0;
-    
+
     if (discountType === "percentage") {
       discountAmount = (grossTotal * discount) / 100;
     } else {
@@ -163,7 +167,7 @@ export default function POSPage() {
     }
 
     const totals = calculateTotals();
-    
+
     try {
       setSubmitting(true);
 
@@ -194,10 +198,10 @@ export default function POSPage() {
       };
 
       const response = await saleAPI.create(saleData);
-      
+
       // Print the bill
       if (response.data.printData) {
-        console.log("Printing bill",response.data.printData,"length",response.data.printData.items.length);
+        console.log("Printing bill", response.data.printData, "length", response.data.printData.items.length);
         printBill(response.data.printData);
       }
 
@@ -623,20 +627,48 @@ export default function POSPage() {
               <CardTitle>Payment Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customer">Customer</Label>
-                <Select
-                  id="customer"
-                  value={selectedCustomer}
-                  onChange={(e) => handleCustomerChange(e.target.value)}
-                >
-                  <option value="">Walk-in Customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer._id} value={customer._id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </Select>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="areaFilter">Filter by Area</Label>
+                  <Select
+                    id="areaFilter"
+                    value={selectedArea}
+                    onChange={(e) => {
+                      setSelectedArea(e.target.value);
+                      setSelectedCustomer(""); // Reset customer when area changes
+                      // Clear fields
+                      setCustomerNo("");
+                      setArea("");
+                      setCnic("");
+                      setLicenseNo("");
+                    }}
+                  >
+                    <option value="">All Areas</option>
+                    {areas.map((a) => (
+                      <option key={a._id} value={a.name}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer">Customer</Label>
+                  <Select
+                    id="customer"
+                    value={selectedCustomer}
+                    onChange={(e) => handleCustomerChange(e.target.value)}
+                  >
+                    <option value="">Walk-in Customer</option>
+                    {customers
+                      .filter((c) => !selectedArea || c.area === selectedArea)
+                      .map((customer) => (
+                        <option key={customer._id} value={customer._id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
