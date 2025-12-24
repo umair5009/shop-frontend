@@ -98,14 +98,23 @@ export default function PurchasesPage() {
     setSubmitting(true);
 
     try {
+      // Find the selected product to get its name
+      const selectedProduct = products.find(p => p._id === formData.product);
+      const productName = selectedProduct?.name || "Unknown Product";
+
       const payload = {
         supplier: formData.supplier,
-        product: formData.product,
-        quantity: parseInt(formData.quantity),
-        costPrice: parseFloat(formData.costPrice),
-        totalAmount: parseFloat(formData.totalAmount),
-        paymentMethod: formData.paymentMethod,
-        amountPaid: parseFloat(formData.amountPaid) || 0,
+        // Backend expects items array with specific structure
+        items: [
+          {
+            product: formData.product,
+            productName: productName,
+            tradePrice: parseFloat(formData.costPrice) || 0,
+            qty: parseInt(formData.quantity) || 0,
+            netAmount: parseFloat(formData.totalAmount) || 0,
+          }
+        ],
+        cashReceived: parseFloat(formData.amountPaid) || 0,
       };
 
       await purchaseAPI.create(payload);
@@ -127,7 +136,8 @@ export default function PurchasesPage() {
 
   const filteredPurchases = purchases.filter((purchase) =>
     purchase.supplier?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    purchase.product?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    purchase.invoiceNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    purchase.items?.some(item => item.productName?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (loading) {
@@ -180,27 +190,39 @@ export default function PurchasesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Invoice #</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Cost Price</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Payment</TableHead>
+                  <TableHead>Products</TableHead>
+                  <TableHead className="text-right">Items</TableHead>
+                  <TableHead className="text-right">Grand Total</TableHead>
+                  <TableHead className="text-right">Cash Received</TableHead>
+                  <TableHead className="text-right">Net Balance</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPurchases.map((purchase) => (
                   <TableRow key={purchase._id}>
-                    <TableCell>{formatDate(purchase.createdAt)}</TableCell>
+                    <TableCell className="font-mono font-medium">{purchase.invoiceNo}</TableCell>
+                    <TableCell>{formatDate(purchase.invoiceDate || purchase.createdAt)}</TableCell>
                     <TableCell>{purchase.supplier?.name || "N/A"}</TableCell>
-                    <TableCell>{purchase.product?.name || "N/A"}</TableCell>
-                    <TableCell className="text-right">{purchase.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(purchase.costPrice)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(purchase.totalAmount)}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{purchase.paymentMethod}</Badge>
+                      <div className="max-w-[200px]">
+                        {purchase.items?.map((item, idx) => (
+                          <div key={idx} className="text-sm">
+                            {item.productName} <span className="text-zinc-500">x{item.qty}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{purchase.noOfItems || purchase.items?.length}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(purchase.grandTotal)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatCurrency(purchase.cashReceived)}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={purchase.netBalance > 0 ? "destructive" : "success"}>
+                        {formatCurrency(purchase.netBalance)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -363,44 +385,78 @@ export default function PurchasesPage() {
           </DialogHeader>
           {selectedPurchase && (
             <div className="space-y-4">
+              {/* Invoice Header */}
               <div className="grid grid-cols-2 gap-4 rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800">
+                <div>
+                  <p className="text-sm text-zinc-500">Invoice No</p>
+                  <p className="font-mono font-medium">{selectedPurchase.invoiceNo}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-zinc-500">Invoice Date</p>
+                  <p className="font-medium">{formatDate(selectedPurchase.invoiceDate || selectedPurchase.createdAt)}</p>
+                </div>
                 <div>
                   <p className="text-sm text-zinc-500">Supplier</p>
                   <p className="font-medium">{selectedPurchase.supplier?.name || "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-zinc-500">Date</p>
-                  <p className="font-medium">{formatDate(selectedPurchase.createdAt)}</p>
+                  <p className="text-sm text-zinc-500">Supplier Phone</p>
+                  <p className="font-medium">{selectedPurchase.supplier?.phone || "N/A"}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-zinc-500">Product</p>
-                  <p className="font-medium">{selectedPurchase.product?.name || "N/A"}</p>
+              </div>
+
+              {/* Items Table */}
+              <div>
+                <h3 className="font-semibold mb-2">Items ({selectedPurchase.noOfItems || selectedPurchase.items?.length})</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Trade Price</TableHead>
+                      <TableHead className="text-right">Net Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPurchase.items?.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.productName}</TableCell>
+                        <TableCell className="text-right">{item.qty}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.tradePrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.netAmount)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Totals */}
+              <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <div className="flex justify-between">
+                  <span>Gross Total:</span>
+                  <span className="font-medium">{formatCurrency(selectedPurchase.gross)}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-zinc-500">Quantity</p>
-                  <p className="font-medium">{selectedPurchase.quantity}</p>
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Grand Total:</span>
+                  <span>{formatCurrency(selectedPurchase.grandTotal)}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-zinc-500">Cost Price</p>
-                  <p className="font-medium">{formatCurrency(selectedPurchase.costPrice)}</p>
+                <div className="flex justify-between text-sm text-zinc-500">
+                  <span>Amount in Words:</span>
+                  <span className="italic">{selectedPurchase.amountInWords}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-zinc-500">Total Amount</p>
-                  <p className="font-medium">{formatCurrency(selectedPurchase.totalAmount)}</p>
+                <div className="flex justify-between">
+                  <span>Cash Received:</span>
+                  <span className="font-medium text-green-600">{formatCurrency(selectedPurchase.cashReceived)}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-zinc-500">Payment Method</p>
-                  <Badge variant="secondary">{selectedPurchase.paymentMethod}</Badge>
+                <div className="flex justify-between">
+                  <span>Previous Balance:</span>
+                  <span className="font-medium">{formatCurrency(selectedPurchase.previousBalance)}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-zinc-500">Amount Paid</p>
-                  <p className="font-medium">{formatCurrency(selectedPurchase.amountPaid)}</p>
-                </div>
-                <div className="col-span-2">
-                  <p className="text-sm text-zinc-500">Remaining Balance</p>
-                  <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                    {formatCurrency((selectedPurchase.totalAmount || 0) - (selectedPurchase.amountPaid || 0))}
-                  </p>
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Net Balance:</span>
+                  <Badge variant={selectedPurchase.netBalance > 0 ? "destructive" : "success"} className="text-base px-3 py-1">
+                    {formatCurrency(selectedPurchase.netBalance)}
+                  </Badge>
                 </div>
               </div>
             </div>

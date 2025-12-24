@@ -87,167 +87,198 @@ export default function SalesPage() {
 
   const printBill = (printData) => {
     const printWindow = window.open("", "_blank");
+
     printWindow.document.write(`
-      <html>
-        <head>
-          <title>Invoice - ${printData.invoiceNumber}</title>
-          <style>
-            @page { size: A4; margin: 10mm; }
-            body {
-              font-family: Arial, sans-serif;
-              font-size: 11px;
-              margin: 0;
-              padding: 15px;
-            }
-            .header { text-align: center; margin-bottom: 10px; }
-            .header h1 { font-size: 18px; margin: 0; }
-            .header p { font-size: 10px; margin: 2px 0; }
-            .invoice-title {
-              text-align: center;
-              border: 2px solid #000;
-              padding: 5px;
-              margin: 10px 0;
-              font-size: 14px;
-              font-weight: bold;
-            }
-            .meta-section {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 10px;
-            }
-            .meta-left, .meta-right { width: 48%; }
-            .meta-row {
-              display: flex;
-              margin-bottom: 3px;
-              font-size: 10px;
-            }
-            .meta-label {
-              width: 120px;
-              font-weight: bold;
-            }
-            .meta-value {
-              flex: 1;
-              border-bottom: 1px solid #000;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 10px 0;
-              font-size: 10px;
-            }
-            th, td {
-              border: 1px solid #000;
-              padding: 5px 4px;
-              text-align: left;
-            }
-            th {
-              background-color: #f0f0f0;
-              font-weight: bold;
-              text-align: center;
-            }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            .summary {
-              display: flex;
-              justify-content: space-between;
-              margin: 10px 0;
-            }
-            .summary-left { width: 48%; }
-            .summary-right { width: 48%; }
-            .total-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 5px;
-              font-size: 11px;
-            }
-            .grand-total {
-              font-size: 16px;
-              font-weight: bold;
-              border: 2px solid #000;
-              padding: 8px;
-              margin: 10px 0;
-            }
-            .footer {
-              margin-top: 30px;
-              text-align: center;
-              font-size: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>G.L TRADERS</h1>
-            <p>4 Haji Saeed Market Near 13M Office G.T Road Jehangira</p>
-            <p>Saiful Gul: 0322-9171401</p>
-          </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Invoice - ${printData.invoiceNumber}</title>
+  <style>
+    @page { size: A4; margin: 10mm; }
 
-          <div class="invoice-title">SALES INVOICE</div>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      margin: 0;
+      padding: 15px;
+    }
 
-          <div class="meta-section">
-            <div class="meta-left">
-              <div class="meta-row">
-                <span class="meta-label">Customer #:</span>
-                <span class="meta-value">${printData.customerNo || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Customer/Shop Name:</span>
-                <span class="meta-value">${printData.customer?.name || "Walk-in Customer"}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Address:</span>
-                <span class="meta-value">${printData.customer?.address || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Phone:</span>
-                <span class="meta-value">${printData.customer?.phone || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Area:</span>
-                <span class="meta-value">${printData.area || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Delivered By:</span>
-                <span class="meta-value">${printData.deliveredBy || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Booked By:</span>
-                <span class="meta-value">${printData.bookedBy || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">License #:</span>
-                <span class="meta-value">${printData.licenseNo || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">CNIC:</span>
-                <span class="meta-value">${printData.cnic || ''}</span>
-              </div>
-            </div>
+    .header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
 
-            <div class="meta-right">
-              <div class="meta-row">
-                <span class="meta-label">Invoice No:</span>
-                <span class="meta-value">${printData.invoiceNumber}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Invoice Date:</span>
-                <span class="meta-value">${new Date(printData.date).toLocaleDateString()}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Due Date:</span>
-                <span class="meta-value">${printData.dueDate ? new Date(printData.dueDate).toLocaleDateString() : ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Order No:</span>
-                <span class="meta-value">${printData.orderNo || ''}</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Page Number:</span>
-                <span class="meta-value">1 of 1</span>
-              </div>
-            </div>
-          </div>
+    .header h1 {
+      font-size: 18px;
+      margin: 0;
+    }
 
-          ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
+    .header p {
+      font-size: 10px;
+      margin: 2px 0;
+    }
+
+    .invoice-title {
+      text-align: center;
+      border: 2px solid #000;
+      padding: 5px;
+      margin: 10px 0;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .meta-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .meta-left, .meta-right {
+      width: 48%;
+    }
+
+    .meta-row {
+      display: flex;
+      margin-bottom: 3px;
+      font-size: 10px;
+    }
+
+    .meta-label {
+      width: 120px;
+      font-weight: bold;
+    }
+
+    .meta-value {
+      flex: 1;
+      border-bottom: 1px solid #000;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 10px;
+    }
+
+    th, td {
+      border: 1px solid #000;
+      padding: 5px 4px;
+    }
+
+    th {
+      background-color: #f0f0f0;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .summary-left, .summary-right {
+      width: 48%;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 11px;
+    }
+
+     .terms {
+      border: 1px solid #000;
+      padding: 8px;
+      font-size: 10px;
+      line-height: 1.7;
+      margin-top: 10px;
+    }
+
+    .terms h4 {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      text-align: center;
+      border-bottom: 1px solid #000;
+      padding-bottom: 4px;
+    }
+
+    .terms p {
+      margin: 4px 0;
+      text-align: right;
+    }
+    .grand-total {
+      font-size: 16px;
+      font-weight: bold;
+      border: 2px solid #000;
+      padding: 8px;
+      margin: 10px 0;
+    }
+
+    .terms {
+      padding: 8px;
+      font-size: 10px;
+      line-height: 1.7;
+      margin-top: 10px;
+    }
+
+    .terms h4 {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      text-align: center;
+      border-bottom: 1px solid #000;
+      padding-bottom: 4px;
+    }
+
+    .terms p {
+      margin: 4px 0;
+      text-align: right;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>Khalil Traders Nowshera</h1>
+    <p>Near Ordinance Depot Mohallah Eisakhail Badrashi Nowshera</p>
+    <p>Phone: 0335-5314415</p>
+  </div>
+
+  <div class="invoice-title">SALES INVOICE</div>
+
+  <div class="meta-section">
+    <div class="meta-left">
+      <div class="meta-row"><span class="meta-label">Customer #:</span><span class="meta-value">${printData.customerNo || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Customer Name:</span><span class="meta-value">${printData.customer?.name || 'Walk-in Customer'}</span></div>
+      <div class="meta-row"><span class="meta-label">Address:</span><span class="meta-value">${printData.customer?.address || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Phone:</span><span class="meta-value">${printData.customer?.phone || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Area:</span><span class="meta-value">${printData.area || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Salesman:</span><span class="meta-value">${printData.deliveredBy || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Salesman No:</span><span class="meta-value">${printData.deliveredByNo || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Order Booker:</span><span class="meta-value">${printData.bookedBy || ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Order Booker Number #:</span><span class="meta-value">${printData.orderByNo || ''}</span></div>
+    </div>
+
+    <div class="meta-right">
+      <div class="meta-row"><span class="meta-label">Invoice No:</span><span class="meta-value">${printData.invoiceNumber}</span></div>
+      <div class="meta-row"><span class="meta-label">Invoice Date:</span><span class="meta-value">${new Date(printData.date).toLocaleDateString()}</span></div>
+      <div class="meta-row"><span class="meta-label">Due Date:</span><span class="meta-value">${printData.dueDate ? new Date(printData.dueDate).toLocaleDateString() : ''}</span></div>
+      <div class="meta-row"><span class="meta-label">Order No:</span><span class="meta-value">${printData.orderNo || ''}</span></div>
+    </div>
+  </div>
+
+${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
             <div style="margin: 15px 0;">
               <h3 style="font-size: 12px; margin: 5px 0; padding: 3px; background-color: #f0f0f0; border-left: 3px solid #000;">${category}</h3>
               <table>
@@ -279,62 +310,57 @@ export default function SalesPage() {
             </div>
           `).join('')}
 
-          <div class="summary">
-            <div class="summary-left">
-              <div style="font-size: 10px; margin-bottom: 5px;">
-                <strong>No. of items:</strong> ${printData.items?.length || 0}
-              </div>
-              <div style="font-size: 10px; margin-bottom: 5px;">
-                <strong>Gross:</strong> Rs ${printData.grossTotal.toFixed(2)}
-              </div>
-            </div>
+  <div class="summary">
+    <div class="summary-left">
+      <div><strong>No. of Items:</strong> ${printData.items?.length || 0}</div>
+      <div style="font-size: 10px; margin-bottom: 5px;">
+        <strong>Gross:</strong> Rs ${printData.grossTotal.toFixed(2)}
+      </div>
 
-            <div class="summary-right">
-              <div class="total-row" style="border-bottom: 1px solid #000;">
-                <span>Gross Total:</span>
-                <span>Rs ${printData.grossTotal.toFixed(2)}</span>
-              </div>
-              <div class="total-row">
-                <span>Discount:</span>
-                <span>Rs ${printData.discountAmount.toFixed(2)}</span>
-              </div>
-              <div class="grand-total">
-                <div class="total-row">
-                  <span>Grand Total:</span>
-                  <span>Rs ${printData.netTotal.toFixed(2)}</span>
-                </div>
-              </div>
-              <div style="font-size: 10px; font-style: italic; margin-bottom: 10px; text-align: center;">
-                ${numberToWords(printData.netTotal)}
-              </div>
-              <div class="total-row" style="border-top: 1px solid #000; border-bottom: 1px solid #000;">
-                <span>Cash Received:</span>
-                <span>Rs ${printData.amountPaid.toFixed(2)}</span>
-              </div>
-              <div class="total-row">
-                <span>Previous Balance:</span>
-                <span>Rs ${(printData.previousBalance || 0).toFixed(2)}</span>
-              </div>
-              <div class="total-row" style="border-top: 2px solid #000; font-weight: bold; font-size: 12px; background-color: #f9f9f9; padding: 8px;">
-                <span>Net Balance:</span>
-                <span>Rs ${(printData.newBalance || 0).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
+      <div class="terms">
+        <h4>Terms & Conditions</h4>
+        <p>براۓ مہربانی! بغیر بل کے ادائیگی ہرگز نہ کریں۔ سیلز مین سے کسی بھی قسم کی ذاتی لین دین کی صورت میں ڈسٹری بیوٹر ذمہ دار نہیں ہوگا۔</p>
+        <p>کسی بھی قسم کی شکایت کی صورت میں درج ذیل نمبر پر رابطہ کریں:</p>
+        <p style="text-align:center;font-weight:bold;">0335-5314415</p>
+        <p style="text-align:center;font-weight:bold;">منجانب: خلیل ٹریڈرز</p>
+      </div>
+    </div>
 
-          <div class="footer">
+    <div class="summary-right">
+      <div class="total-row"><span>Gross Total:</span><span>Rs ${printData.grossTotal.toFixed(2)}</span></div>
+      <div class="total-row"><span>Discount:</span><span>Rs ${printData.discountAmount.toFixed(2)}</span></div>
+
+      <div class="grand-total">
+        <div class="total-row"><span>Grand Total:</span><span>Rs ${printData.netTotal.toFixed(2)}</span></div>
+      </div>
+
+      <div style="text-align:center;font-style:italic;font-size:10px;">
+        ${numberToWords(printData.netTotal)}
+      </div>
+
+      <div class="total-row"><span>Cash Received:</span><span>Rs ${printData.amountPaid.toFixed(2)}</span></div>
+      <div class="total-row"><span>Previous Balance:</span><span>Rs ${(printData.previousBalance || 0).toFixed(2)}</span></div>
+      <div class="total-row" style="font-weight:bold;border-top:2px solid #000;">
+        <span>Net Balance:</span><span>Rs ${(printData.newBalance || 0).toFixed(2)}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
             <p style="margin-top: 20px; border-top: 1px solid #000; padding-top: 10px;">
               Thank you for your business!
             </p>
           </div>
 
-          <script>
-            window.print();
-            window.onafterprint = () => window.close();
-          </script>
-        </body>
-      </html>
-    `);
+  <script>
+    window.print();
+    window.onafterprint = () => window.close();
+  </script>
+
+</body>
+</html>
+  `);
+
     printWindow.document.close();
   };
 
@@ -491,7 +517,7 @@ export default function SalesPage() {
                 <div className="flex justify-between">
                   <span>Discount:</span>
                   <span className="font-medium text-red-600">-{formatCurrency(selectedSale.discountAmount
-)}</span>
+                  )}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold">
                   <span>Net Total:</span>
@@ -505,7 +531,7 @@ export default function SalesPage() {
                   <span>Balance:</span>
                   <Badge variant={selectedSale.newBalance > 0 ? "destructive" : "success"}>
                     {formatCurrency(selectedSale.newBalance
- || 0)}
+                      || 0)}
                   </Badge>
                 </div>
               </div>
