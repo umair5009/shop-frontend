@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { purchaseAPI, supplierAPI, productAPI } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Plus, Eye, Search } from "lucide-react";
+import { Plus, Eye, Search, Trash2, PlusCircle } from "lucide-react";
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState([]);
@@ -30,6 +30,12 @@ export default function PurchasesPage() {
     totalAmount: "",
     paymentMethod: "cash",
     amountPaid: "",
+    biltyNumber: "",
+    supplierInvoiceNumber: "",
+    batchNumber: "",
+    transactionId: "",
+    bankName: "",
+    expenses: [],
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,8 +70,37 @@ export default function PurchasesPage() {
       totalAmount: "",
       paymentMethod: "cash",
       amountPaid: "",
+      biltyNumber: "",
+      supplierInvoiceNumber: "",
+      batchNumber: "",
+      transactionId: "",
+      bankName: "",
+      expenses: [],
     });
     setDialogOpen(true);
+  };
+
+  // Expense handlers
+  const addExpense = () => {
+    setFormData({
+      ...formData,
+      expenses: [...formData.expenses, { description: "", amount: "" }],
+    });
+  };
+
+  const removeExpense = (index) => {
+    const newExpenses = formData.expenses.filter((_, i) => i !== index);
+    setFormData({ ...formData, expenses: newExpenses });
+  };
+
+  const updateExpense = (index, field, value) => {
+    const newExpenses = [...formData.expenses];
+    newExpenses[index] = { ...newExpenses[index], [field]: value };
+    setFormData({ ...formData, expenses: newExpenses });
+  };
+
+  const getTotalExpenses = () => {
+    return formData.expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
   };
 
   const handleCloseDialog = () => {
@@ -104,6 +139,10 @@ export default function PurchasesPage() {
 
       const payload = {
         supplier: formData.supplier,
+        biltyNumber: formData.biltyNumber || null,
+        supplierInvoiceNumber: formData.supplierInvoiceNumber || null,
+        transactionId: formData.transactionId || null,
+        bankName: formData.bankName || null,
         // Backend expects items array with specific structure
         items: [
           {
@@ -112,8 +151,17 @@ export default function PurchasesPage() {
             tradePrice: parseFloat(formData.costPrice) || 0,
             qty: parseInt(formData.quantity) || 0,
             netAmount: parseFloat(formData.totalAmount) || 0,
+            batchNumber: formData.batchNumber || null,
           }
         ],
+        // Expenses for transport (Raksha rent, loader charges, bus rent, etc.)
+        // NOTE: These are tracked separately, NOT credited to supplier account
+        expenses: formData.expenses
+          .filter(exp => exp.description && exp.amount)
+          .map(exp => ({
+            description: exp.description,
+            amount: parseFloat(exp.amount) || 0,
+          })),
         cashReceived: parseFloat(formData.amountPaid) || 0,
       };
 
@@ -243,7 +291,7 @@ export default function PurchasesPage() {
 
       {/* Add Purchase Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogClose onClick={handleCloseDialog} />
           <DialogHeader>
             <DialogTitle>Add New Purchase</DialogTitle>
@@ -281,6 +329,11 @@ export default function PurchasesPage() {
                   </option>
                 ))}
               </Select>
+              {formData.product && (
+                <p className="text-xs text-zinc-500 font-medium mt-1">
+                  Cost Price per Item: <span className="text-zinc-900 dark:text-zinc-100">{formatCurrency(products.find(p => p._id === formData.product)?.costPrice || 0)}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -314,7 +367,7 @@ export default function PurchasesPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="totalAmount">Total Amount</Label>
+              <Label htmlFor="totalAmount">Product Total</Label>
               <Input
                 id="totalAmount"
                 type="number"
@@ -323,6 +376,120 @@ export default function PurchasesPage() {
                 readOnly
                 className="bg-zinc-100 dark:bg-zinc-800"
               />
+            </div>
+
+            {/* Bilty Number */}
+            <div className="space-y-2">
+              <Label htmlFor="biltyNumber">Bilty Number (Consignment)</Label>
+              <Input
+                id="biltyNumber"
+                value={formData.biltyNumber}
+                onChange={(e) => setFormData({ ...formData, biltyNumber: e.target.value })}
+                placeholder="e.g., BLT-2024-001"
+              />
+            </div>
+
+            {/* New Tracking Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="supplierInvoiceNumber">Supplier Invoice Number</Label>
+                <Input
+                  id="supplierInvoiceNumber"
+                  value={formData.supplierInvoiceNumber}
+                  onChange={(e) => setFormData({ ...formData, supplierInvoiceNumber: e.target.value })}
+                  placeholder="e.g., SUP-INV-001"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="batchNumber">Batch Number</Label>
+                <Input
+                  id="batchNumber"
+                  value={formData.batchNumber}
+                  onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
+                  placeholder="e.g., BATCH-2024-001"
+                />
+              </div>
+            </div>
+
+            {/* Payment Tracking Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="transactionId">Transaction ID</Label>
+                <Input
+                  id="transactionId"
+                  value={formData.transactionId}
+                  onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
+                  placeholder="e.g., TXN-12345"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bankName">Bank Name</Label>
+                <Input
+                  id="bankName"
+                  value={formData.bankName}
+                  onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                  placeholder="e.g., HBL, MCB, etc."
+                />
+              </div>
+            </div>
+
+            {/* Expenses Section */}
+            <div className="space-y-3 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Transport Expenses</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addExpense}>
+                  <PlusCircle className="mr-1 h-4 w-4" />
+                  Add Expense
+                </Button>
+              </div>
+
+              {formData.expenses.length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-2">
+                  No expenses added. Click "Add Expense" to add transport costs.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {formData.expenses.map((expense, index) => (
+                    <div key={index} className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <Label className="text-xs">Description</Label>
+                        <Input
+                          value={expense.description}
+                          onChange={(e) => updateExpense(index, "description", e.target.value)}
+                          placeholder="e.g., Raksha Rent, Loader Charges"
+                        />
+                      </div>
+                      <div className="w-28">
+                        <Label className="text-xs">Amount</Label>
+                        <Input
+                          type="number"
+                          value={expense.amount}
+                          onChange={(e) => updateExpense(index, "amount", e.target.value)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="mb-0.5"
+                        onClick={() => removeExpense(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {formData.expenses.length > 0 && (
+                <div className="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                  <span className="font-medium">Total Expenses:</span>
+                  <span className="font-bold text-orange-600">{formatCurrency(getTotalExpenses())}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -352,16 +519,38 @@ export default function PurchasesPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="remainingBalance">Remaining Balance</Label>
-              <Input
-                id="remainingBalance"
-                type="number"
-                step="0.01"
-                value={(parseFloat(formData.totalAmount || 0) - parseFloat(formData.amountPaid || 0)).toFixed(2)}
-                readOnly
-                className="bg-zinc-100 dark:bg-zinc-800 font-semibold"
-              />
+            {/* Grand Total and Remaining Balance */}
+            <div className="space-y-2 rounded-lg bg-zinc-50 dark:bg-zinc-900 p-3">
+              <div className="flex justify-between text-sm">
+                <span>Product Total:</span>
+                <span>{formatCurrency(parseFloat(formData.totalAmount) || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Transport Expenses:</span>
+                <span className="text-orange-600">{formatCurrency(getTotalExpenses())}</span>
+              </div>
+              <div className="flex justify-between font-bold border-t border-zinc-200 dark:border-zinc-700 pt-2">
+                <span>Grand Total:</span>
+                <span>{formatCurrency((parseFloat(formData.totalAmount) || 0) + getTotalExpenses())}</span>
+              </div>
+              <div className="flex justify-between text-sm text-blue-600 font-medium">
+                <span>Effective Cost / Item:</span>
+                <span>
+                  {formatCurrency(
+                    ((parseFloat(formData.totalAmount) || 0) + getTotalExpenses()) / (parseInt(formData.quantity) || 1)
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Amount Paid:</span>
+                <span className="text-green-600">-{formatCurrency(parseFloat(formData.amountPaid) || 0)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg">
+                <span>Remaining Balance:</span>
+                <span className={((parseFloat(formData.totalAmount) || 0) + getTotalExpenses() - (parseFloat(formData.amountPaid) || 0)) > 0 ? "text-red-600" : "text-green-600"}>
+                  {formatCurrency((parseFloat(formData.totalAmount) || 0) + getTotalExpenses() - (parseFloat(formData.amountPaid) || 0))}
+                </span>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -403,6 +592,30 @@ export default function PurchasesPage() {
                   <p className="text-sm text-zinc-500">Supplier Phone</p>
                   <p className="font-medium">{selectedPurchase.supplier?.phone || "N/A"}</p>
                 </div>
+                {selectedPurchase.biltyNumber && (
+                  <div>
+                    <p className="text-sm text-zinc-500">Bilty Number (Consignment)</p>
+                    <p className="font-mono font-medium text-blue-600">{selectedPurchase.biltyNumber}</p>
+                  </div>
+                )}
+                {selectedPurchase.supplierInvoiceNumber && (
+                  <div>
+                    <p className="text-sm text-zinc-500">Supplier Invoice No</p>
+                    <p className="font-mono font-medium text-purple-600">{selectedPurchase.supplierInvoiceNumber}</p>
+                  </div>
+                )}
+                {selectedPurchase.transactionId && (
+                  <div>
+                    <p className="text-sm text-zinc-500">Transaction ID</p>
+                    <p className="font-mono font-medium text-green-600">{selectedPurchase.transactionId}</p>
+                  </div>
+                )}
+                {selectedPurchase.bankName && (
+                  <div>
+                    <p className="text-sm text-zinc-500">Bank Name</p>
+                    <p className="font-medium">{selectedPurchase.bankName}</p>
+                  </div>
+                )}
               </div>
 
               {/* Items Table */}
@@ -412,6 +625,7 @@ export default function PurchasesPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
+                      <TableHead>Batch #</TableHead>
                       <TableHead className="text-right">Qty</TableHead>
                       <TableHead className="text-right">Trade Price</TableHead>
                       <TableHead className="text-right">Net Amount</TableHead>
@@ -421,6 +635,7 @@ export default function PurchasesPage() {
                     {selectedPurchase.items?.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell>{item.productName}</TableCell>
+                        <TableCell className="font-mono text-xs">{item.batchNumber || "-"}</TableCell>
                         <TableCell className="text-right">{item.qty}</TableCell>
                         <TableCell className="text-right">{formatCurrency(item.tradePrice)}</TableCell>
                         <TableCell className="text-right">{formatCurrency(item.netAmount)}</TableCell>
@@ -430,12 +645,47 @@ export default function PurchasesPage() {
                 </Table>
               </div>
 
+              {/* Expenses Table */}
+              {selectedPurchase.expenses && selectedPurchase.expenses.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Transport Expenses</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedPurchase.expenses.map((expense, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{expense.description}</TableCell>
+                          <TableCell className="text-right text-orange-600">{formatCurrency(expense.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-orange-50 dark:bg-orange-900/20">
+                        <TableCell className="font-semibold">Total Expenses</TableCell>
+                        <TableCell className="text-right font-bold text-orange-600">
+                          {formatCurrency(selectedPurchase.totalExpenses || 0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
               {/* Totals */}
               <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                 <div className="flex justify-between">
-                  <span>Gross Total:</span>
+                  <span>Product Total:</span>
                   <span className="font-medium">{formatCurrency(selectedPurchase.gross)}</span>
                 </div>
+                {(selectedPurchase.totalExpenses || 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span>Transport Expenses:</span>
+                    <span className="font-medium text-orange-600">{formatCurrency(selectedPurchase.totalExpenses)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold">
                   <span>Grand Total:</span>
                   <span>{formatCurrency(selectedPurchase.grandTotal)}</span>

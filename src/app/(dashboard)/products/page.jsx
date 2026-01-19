@@ -20,16 +20,22 @@ export default function ProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
     costPrice: "",
     sellingPrice: "",
+    tradePrice: "",
     stockInUnits: "", // Stock in CTN/KG (what user enters)
     minStock: "",
     barcode: "",
     unit: "PCS",
     pcsPerUnit: "1",
+    manufacturingDate: "",
+    expirationDate: "",
+    batchNumber: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,11 +72,15 @@ export default function ProductsPage() {
         category: product.category?._id || "",
         costPrice: product.costPrice,
         sellingPrice: product.sellingPrice,
+        tradePrice: product.tradePrice || "",
         stockInUnits: stockInUnits.toString(),
         minStock: product.minStock || "",
         barcode: product.barcode || "",
         unit: product.unit || "PCS",
         pcsPerUnit: product.pcsPerUnit || "1",
+        manufacturingDate: product.manufacturingDate ? product.manufacturingDate.split('T')[0] : "",
+        expirationDate: product.expirationDate ? product.expirationDate.split('T')[0] : "",
+        batchNumber: product.batchNumber || "",
       });
     } else {
       setEditingProduct(null);
@@ -79,11 +89,15 @@ export default function ProductsPage() {
         category: "",
         costPrice: "",
         sellingPrice: "",
+        tradePrice: "",
         stockInUnits: "",
         minStock: "",
         barcode: "",
         unit: "PCS",
         pcsPerUnit: "1",
+        manufacturingDate: "",
+        expirationDate: "",
+        batchNumber: "",
       });
     }
     setDialogOpen(true);
@@ -106,9 +120,13 @@ export default function ProductsPage() {
         unit: formData.unit,
         costPrice: parseFloat(formData.costPrice),
         sellingPrice: parseFloat(formData.sellingPrice),
+        tradePrice: formData.tradePrice ? parseFloat(formData.tradePrice) : undefined,
         stockInUnits: parseInt(formData.stockInUnits) || 0, // Send stock in units (CTN/KG)
         minStock: formData.minStock ? parseInt(formData.minStock) : undefined,
         pcsPerUnit: parseInt(formData.pcsPerUnit) || 1,
+        manufacturingDate: formData.manufacturingDate || undefined,
+        expirationDate: formData.expirationDate || undefined,
+        batchNumber: formData.batchNumber || undefined,
       };
 
       if (editingProduct) {
@@ -126,15 +144,21 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setDeleteDialogOpen(true);
+  };
 
+  const confirmDelete = async () => {
     try {
-      await productAPI.delete(id);
+      await productAPI.delete(deleteId);
       fetchData();
     } catch (error) {
       console.error("Error deleting product:", error);
       alert(error.response?.data?.message || "Failed to delete product");
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteId(null);
     }
   };
 
@@ -198,6 +222,7 @@ export default function ProductsPage() {
                   <TableHead>Barcode</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Selling Price</TableHead>
+                  <TableHead className="text-right">Trade Price (TP)</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -210,6 +235,9 @@ export default function ProductsPage() {
                     <TableCell>{product.barcode || "-"}</TableCell>
                     <TableCell className="text-right">{formatCurrency(product.costPrice)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(product.sellingPrice)}</TableCell>
+                    <TableCell className="text-right font-medium text-blue-600">
+                      {product.tradePrice ? formatCurrency(product.tradePrice) : "-"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Badge variant={product.stock <= (product.minStock || 10) ? "destructive" : "secondary"}>
                         {product.unit !== 'PCS' && product.pcsPerUnit > 1 ? (
@@ -236,7 +264,7 @@ export default function ProductsPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleDelete(product._id)}
+                          onClick={() => handleDeleteClick(product._id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -341,8 +369,8 @@ export default function ProductsPage() {
                   {formData.unit === "PCS"
                     ? "Enter total pieces in stock"
                     : formData.stockInUnits && formData.pcsPerUnit
-                    ? `= ${parseInt(formData.stockInUnits) * parseInt(formData.pcsPerUnit)} pieces total (calculated automatically)`
-                    : `Enter stock in ${formData.unit} (e.g., 900 ${formData.unit}). Backend will calculate total pieces.`
+                      ? `= ${parseInt(formData.stockInUnits) * parseInt(formData.pcsPerUnit)} pieces total (calculated automatically)`
+                      : `Enter stock in ${formData.unit} (e.g., 900 ${formData.unit}). Backend will calculate total pieces.`
                   }
                 </p>
               </div>
@@ -383,9 +411,61 @@ export default function ProductsPage() {
                 />
                 <p className="text-xs text-zinc-500">
                   {formData.unit === "PCS" ? "Keep as 1 for pieces" :
-                   formData.unit === "CTN" ? "How many pieces per cotton/carton?" :
-                   "How many pieces per kg?"}
+                    formData.unit === "CTN" ? "How many pieces per cotton/carton?" :
+                      "How many pieces per kg?"}
                 </p>
+              </div>
+
+              {/* Trade Price Field */}
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="tradePrice">Trade Price (TP) - Wholesale/Retail Price</Label>
+                <Input
+                  id="tradePrice"
+                  type="number"
+                  step="0.01"
+                  value={formData.tradePrice}
+                  onChange={(e) => setFormData({ ...formData, tradePrice: e.target.value })}
+                  placeholder="Price for retailers/customers"
+                />
+                <p className="text-xs text-zinc-500">
+                  This is the price you sell to retailers/customers. Will be shown on invoices and bills.
+                </p>
+              </div>
+
+              {/* Product Tracking Fields */}
+              <div className="col-span-2 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-4">
+                <h3 className="font-semibold text-sm">Product Tracking Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="manufacturingDate">Manufacturing Date (MFG)</Label>
+                    <Input
+                      id="manufacturingDate"
+                      type="date"
+                      value={formData.manufacturingDate}
+                      onChange={(e) => setFormData({ ...formData, manufacturingDate: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="expirationDate">Expiration Date</Label>
+                    <Input
+                      id="expirationDate"
+                      type="date"
+                      value={formData.expirationDate}
+                      onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="batchNumber">Batch Number</Label>
+                  <Input
+                    id="batchNumber"
+                    value={formData.batchNumber}
+                    onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
+                    placeholder="e.g., BATCH-2024-001"
+                  />
+                </div>
               </div>
             </div>
 
@@ -398,6 +478,20 @@ export default function ProductsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this product? This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

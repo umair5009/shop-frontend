@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { customerAPI, areaAPI } from "@/lib/api";
+import { customerAPI, areaAPI, paymentAPI } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Eye, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Search, DollarSign } from "lucide-react";
+import { Select } from "@/components/ui/select";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
@@ -31,8 +32,27 @@ export default function CustomersPage() {
     cnic: "",
     licenseNo: "",
     customerNo: "",
+    openingBalance: "",  // For new customers - previous outstanding balance
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Payment dialog state
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentCustomer, setPaymentCustomer] = useState(null);
+  const [paymentData, setPaymentData] = useState({
+    amount: "",
+    paymentMethod: "cash",
+    reference: "",
+    note: "",
+    transactionId: "",
+    bankName: "",
+  });
+
+  // Dialog States
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -78,6 +98,7 @@ export default function CustomersPage() {
         cnic: "",
         licenseNo: "",
         customerNo: "",
+        openingBalance: "",
       });
     }
     setDialogOpen(true);
@@ -96,6 +117,7 @@ export default function CustomersPage() {
       const payload = {
         ...formData,
         creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,
+        openingBalance: !editingCustomer && formData.openingBalance ? parseFloat(formData.openingBalance) : undefined,
       };
 
       if (editingCustomer) {
@@ -107,21 +129,29 @@ export default function CustomersPage() {
       handleCloseDialog();
     } catch (error) {
       console.error("Error saving customer:", error);
-      alert(error.response?.data?.message || "Failed to save customer");
+      setErrorMessage(error.response?.data?.message || "Failed to save customer");
+      setErrorDialogOpen(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this customer?")) return;
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setDeleteDialogOpen(true);
+  };
 
+  const confirmDelete = async () => {
     try {
-      await customerAPI.delete(id);
+      await customerAPI.delete(deleteId);
       fetchCustomers();
     } catch (error) {
       console.error("Error deleting customer:", error);
-      alert(error.response?.data?.message || "Failed to delete customer");
+      setErrorMessage(error.response?.data?.message || "Failed to delete customer");
+      setErrorDialogOpen(true);
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteId(null);
     }
   };
 
@@ -132,8 +162,56 @@ export default function CustomersPage() {
       setLedger(response.data.ledger || []);
       setLedgerDialogOpen(true);
     } catch (error) {
+
       console.error("Error fetching ledger:", error);
-      alert("Failed to fetch ledger");
+      setErrorMessage("Failed to fetch ledger");
+      setErrorDialogOpen(true);
+    }
+  };
+
+  // Payment handlers
+  const handleOpenPaymentDialog = (customer) => {
+    setPaymentCustomer(customer);
+    setPaymentData({
+      amount: "",
+      paymentMethod: "cash",
+      reference: "",
+      note: "",
+      transactionId: "",
+      bankName: "",
+    });
+    setPaymentDialogOpen(true);
+  };
+
+  const handleSubmitPayment = async (e) => {
+    e.preventDefault();
+    if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
+      setErrorMessage("Please enter a valid amount");
+      setErrorDialogOpen(true);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await paymentAPI.createCustomerPayment({
+        customerId: paymentCustomer._id,
+        amount: parseFloat(paymentData.amount),
+        paymentMethod: paymentData.paymentMethod,
+        reference: paymentData.reference,
+        note: paymentData.note,
+        transactionId: paymentData.transactionId,
+        bankName: paymentData.bankName,
+      });
+      setErrorMessage("Payment recorded successfully!");
+      setErrorDialogOpen(true);
+      setPaymentDialogOpen(false);
+      fetchCustomers(); // Refresh to show updated balance
+    } catch (error) {
+      console.error("Error recording payment:", error);
+      setErrorMessage(error.response?.data?.message || "Failed to record payment");
+      setErrorDialogOpen(true);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -214,10 +292,21 @@ export default function CustomersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {customer.balance > 0 && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleOpenPaymentDialog(customer)}
+                            title="Receive Payment"
+                          >
+                            <DollarSign className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewLedger(customer)}
+                          title="View Ledger"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -225,13 +314,15 @@ export default function CustomersPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenDialog(customer)}
+                          title="Edit"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleDelete(customer._id)}
+                          onClick={() => handleDeleteClick(customer._id)}
+                          title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -348,6 +439,28 @@ export default function CustomersPage() {
               </div>
             </div>
 
+            {/* Opening Balance - Only for new customers */}
+            {!editingCustomer && (
+              <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+                <Label htmlFor="openingBalance" className="text-amber-800 dark:text-amber-200">
+                  Opening Balance (Previous Outstanding)
+                </Label>
+                <Input
+                  id="openingBalance"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.openingBalance}
+                  onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
+                  placeholder="0.00"
+                  className="border-amber-300 dark:border-amber-700"
+                />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Enter any previous outstanding balance if migrating from another system. Leave empty or 0 for new customers.
+                </p>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={handleCloseDialog}>
                 Cancel
@@ -385,40 +498,180 @@ export default function CustomersPage() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Debit</TableHead>
-                    <TableHead className="text-right">Credit</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Note</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
                     <TableHead className="text-right">Balance</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ledger.map((entry, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{formatDate(entry.date)}</TableCell>
-                      <TableCell>
-                        <Badge variant={entry.type === "sale" ? "default" : "secondary"}>
-                          {entry.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{entry.description}</TableCell>
-                      <TableCell className="text-right">
-                        {entry.debit ? formatCurrency(entry.debit) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {entry.credit ? formatCurrency(entry.credit) : "-"}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(entry.balance)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {(() => {
+                    let runningBalance = 0;
+                    return ledger.map((entry, index) => {
+                      // Calculate running balance
+                      // invoice/sale adds to balance, payment reduces balance
+                      if (entry.type === 'invoice' || entry.type === 'sale') {
+                        runningBalance += Math.abs(entry.amount || 0);
+                      } else if (entry.type === 'payment') {
+                        runningBalance -= Math.abs(entry.amount || 0);
+                      } else {
+                        runningBalance += (entry.amount || 0);
+                      }
+
+                      const isDebit = entry.type === 'invoice' || entry.type === 'sale';
+
+                      return (
+                        <TableRow key={index}>
+                          <TableCell>{formatDate(entry.date)}</TableCell>
+                          <TableCell>
+                            <Badge variant={isDebit ? "destructive" : "default"}>
+                              {entry.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{entry.reference || "-"}</TableCell>
+                          <TableCell className="max-w-[150px] truncate">{entry.note || "-"}</TableCell>
+                          <TableCell className={`text-right font-medium ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
+                            {isDebit ? '+' : '-'}{formatCurrency(Math.abs(entry.amount || 0))}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(runningBalance)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
                 </TableBody>
               </Table>
             )}
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent>
+          <DialogClose onClick={() => setPaymentDialogOpen(false)} />
+          <DialogHeader>
+            <DialogTitle>Receive Payment - {paymentCustomer?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg bg-zinc-100 p-4 dark:bg-zinc-800 mb-4">
+            <div className="flex justify-between">
+              <span>Outstanding Balance:</span>
+              <span className="font-bold text-red-600">{formatCurrency(paymentCustomer?.balance || 0)}</span>
+            </div>
+          </div>
+          <form onSubmit={handleSubmitPayment} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">Amount *</Label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                min="1"
+                max={paymentCustomer?.balance || 0}
+                value={paymentData.amount}
+                onChange={(e) => setPaymentData({ ...paymentData, amount: e.target.value })}
+                placeholder="Enter payment amount"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <Select
+                id="paymentMethod"
+                value={paymentData.paymentMethod}
+                onChange={(e) => setPaymentData({ ...paymentData, paymentMethod: e.target.value })}
+              >
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="cheque">Cheque</option>
+                <option value="other">Other</option>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentReference">Reference (Cheque # / Transaction ID)</Label>
+              <Input
+                id="paymentReference"
+                value={paymentData.reference}
+                onChange={(e) => setPaymentData({ ...paymentData, reference: e.target.value })}
+                placeholder="Optional"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentNote">Note</Label>
+              <Input
+                id="paymentNote"
+                value={paymentData.note}
+                onChange={(e) => setPaymentData({ ...paymentData, note: e.target.value })}
+                placeholder="Optional note"
+              />
+            </div>
+
+            {/* Payment Tracking Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="transactionId">Transaction ID</Label>
+                <Input
+                  id="transactionId"
+                  value={paymentData.transactionId}
+                  onChange={(e) => setPaymentData({ ...paymentData, transactionId: e.target.value })}
+                  placeholder="e.g., TXN-12345"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="bankName">Bank Name</Label>
+                <Input
+                  id="bankName"
+                  value={paymentData.bankName}
+                  onChange={(e) => setPaymentData({ ...paymentData, bankName: e.target.value })}
+                  placeholder="e.g., HBL, MCB, etc."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setPaymentDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Processing..." : "Record Payment"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this customer? This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error/Info Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Info</DialogTitle>
+          </DialogHeader>
+          <p>{errorMessage}</p>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setErrorDialogOpen(false)}>OK</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 }
 

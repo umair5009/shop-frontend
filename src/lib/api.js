@@ -105,11 +105,18 @@ export const reportAPI = {
   getStock: (params) => api.get("/reports/stock", { params }),
   getOutstandingCustomers: () => api.get("/reports/outstanding-customers"),
   getOutstandingSuppliers: () => api.get("/reports/outstanding-suppliers"),
+  getAreaSales: (params) => api.get("/reports/area-sales", { params }),
+  getProductInsights: (params) => api.get("/reports/product-insights", { params }),
+  getShopProfit: (params) => api.get("/reports/shop-profit", { params }),
+  getProductsByArea: (params) => api.get("/reports/products-by-area", { params }),
+  getLoadPass: (params) => api.get("/reports/loadpass", { params }),
+  getRecoverySheet: (params) => api.get("/reports/recovery-sheet", { params }),
 };
 
 export const billAPI = {
   generate: (data) => api.post("/bill/generate", data),
 };
+
 
 export const areaAPI = {
   getAll: () => api.get("/areas"),
@@ -118,3 +125,27 @@ export const areaAPI = {
   delete: (id) => api.delete(`/areas/${id}`),
 };
 
+export const staffAPI = {
+  getAll: (params) => api.get("/staff", { params }),
+  getById: (id) => api.get(`/staff/${id}`),
+  create: (data) => api.post("/staff", data),
+  update: (id, data) => api.put(`/staff/${id}`, data),
+  delete: (id) => api.delete(`/staff/${id}`),
+  recordAdvance: (id, data) => api.post(`/staff/${id}/advance`, data),
+  paySalary: (id, data) => api.post(`/staff/${id}/salary`, data),
+  getAdvances: (id) => api.get(`/staff/${id}/advances`),
+};
+
+export const returnAPI = {
+  getAll: (params) => api.get("/returns", { params }),
+  getById: (id) => api.get(`/returns/${id}`),
+  getBySale: (saleId) => api.get(`/returns/sale/${saleId}`),
+  create: (data) => api.post("/returns", data),
+};
+
+export const expenseAPI = {
+  getAll: (params) => api.get("/expenses", { params }),
+  getById: (id) => api.get(`/expenses/${id}`),
+  create: (data) => api.post("/expenses", data),
+  delete: (id) => api.delete(`/expenses/${id}`),
+};

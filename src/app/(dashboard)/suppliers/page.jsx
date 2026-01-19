@@ -33,6 +33,12 @@ export default function SuppliersPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // Dialog States
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchSuppliers();
   }, []);
@@ -97,21 +103,29 @@ export default function SuppliersPage() {
       handleCloseDialog();
     } catch (error) {
       console.error("Error saving supplier:", error);
-      alert(error.response?.data?.message || "Failed to save supplier");
+      setErrorMessage(error.response?.data?.message || "Failed to save supplier");
+      setErrorDialogOpen(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this supplier?")) return;
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setDeleteDialogOpen(true);
+  };
 
+  const confirmDelete = async () => {
     try {
-      await supplierAPI.delete(id);
+      await supplierAPI.delete(deleteId);
       fetchSuppliers();
     } catch (error) {
       console.error("Error deleting supplier:", error);
-      alert(error.response?.data?.message || "Failed to delete supplier");
+      setErrorMessage(error.response?.data?.message || "Failed to delete supplier");
+      setErrorDialogOpen(true);
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteId(null);
     }
   };
 
@@ -123,7 +137,8 @@ export default function SuppliersPage() {
       setLedgerDialogOpen(true);
     } catch (error) {
       console.error("Error fetching ledger:", error);
-      alert("Failed to fetch ledger");
+      setErrorMessage("Failed to fetch ledger");
+      setErrorDialogOpen(true);
     }
   };
 
@@ -208,7 +223,7 @@ export default function SuppliersPage() {
                         <Button variant="outline" size="sm" onClick={() => handleOpenDialog(supplier)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(supplier._id)}>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(supplier._id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -377,7 +392,35 @@ export default function SuppliersPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this supplier? This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error/Info Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Info</DialogTitle>
+          </DialogHeader>
+          <p>{errorMessage}</p>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setErrorDialogOpen(false)}>OK</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 }
 

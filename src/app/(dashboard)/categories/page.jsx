@@ -18,6 +18,12 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({ name: "", description: "" });
   const [submitting, setSubmitting] = useState(false);
 
+  // Dialog States
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -65,21 +71,29 @@ export default function CategoriesPage() {
       handleCloseDialog();
     } catch (error) {
       console.error("Error saving category:", error);
-      alert(error.response?.data?.message || "Failed to save category");
+      setErrorMessage(error.response?.data?.message || "Failed to save category");
+      setErrorDialogOpen(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this category?")) return;
+  const handleDeleteClick = (id) => {
+    setDeleteId(id);
+    setDeleteDialogOpen(true);
+  };
 
+  const confirmDelete = async () => {
     try {
-      await categoryAPI.delete(id);
+      await categoryAPI.delete(deleteId);
       fetchCategories();
     } catch (error) {
       console.error("Error deleting category:", error);
-      alert(error.response?.data?.message || "Failed to delete category");
+      setErrorMessage(error.response?.data?.message || "Failed to delete category");
+      setErrorDialogOpen(true);
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteId(null);
     }
   };
 
@@ -142,7 +156,7 @@ export default function CategoriesPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleDelete(category._id)}
+                          onClick={() => handleDeleteClick(category._id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -196,6 +210,33 @@ export default function CategoriesPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this category? This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-500">Error</DialogTitle>
+          </DialogHeader>
+          <p>{errorMessage}</p>
+          <div className="flex justify-end mt-4">
+            <Button onClick={() => setErrorDialogOpen(false)}>OK</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

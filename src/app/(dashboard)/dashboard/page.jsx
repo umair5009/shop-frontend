@@ -156,7 +156,7 @@ export default function DashboardPage() {
                   <TableRow key={sale._id}>
                     <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
                     <TableCell>{sale.customer?.name || "Walk-in"}</TableCell>
-                    <TableCell>{formatDate(sale.createdAt)}</TableCell>
+                    <TableCell>{formatDate(sale.date)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(sale.netTotal)}</TableCell>
                   </TableRow>
                 ))}

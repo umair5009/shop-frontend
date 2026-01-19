@@ -16,6 +16,8 @@ import {
   Receipt,
   CreditCard,
   MapPin,
+  ClipboardList,
+  Wallet,
 } from "lucide-react";
 
 const menuItems = [
@@ -50,6 +52,11 @@ const menuItems = [
     icon: Truck,
   },
   {
+    title: "Staff",
+    href: "/staff",
+    icon: Users,
+  },
+  {
     title: "POS / Billing",
     href: "/pos",
     icon: Receipt,
@@ -58,6 +65,16 @@ const menuItems = [
     title: "Sales",
     href: "/sales",
     icon: ShoppingCart,
+  },
+  {
+    title: "LoadPass",
+    href: "/loadpass",
+    icon: ClipboardList,
+  },
+  {
+    title: "Recovery Sheet",
+    href: "/recovery",
+    icon: Wallet,
   },
   {
     title: "Purchases",

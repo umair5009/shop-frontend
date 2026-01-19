@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { productAPI, customerAPI, saleAPI, areaAPI } from "@/lib/api";
+import { productAPI, customerAPI, saleAPI, areaAPI, staffAPI } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Printer } from "lucide-react";
 
@@ -16,6 +16,7 @@ export default function POSPage() {
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [selectedArea, setSelectedArea] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState([]);
@@ -38,6 +39,7 @@ export default function POSPage() {
   const [orderNo, setOrderNo] = useState("");
   const [orderByNo, setOrderByNo] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
 
   useEffect(() => {
     fetchData();
@@ -46,14 +48,16 @@ export default function POSPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [productsRes, customersRes, areasRes] = await Promise.all([
+      const [productsRes, customersRes, areasRes, staffRes] = await Promise.all([
         productAPI.getAll({ page: 1, limit: 1000 }),
         customerAPI.getAll({ page: 1, limit: 1000 }),
         areaAPI.getAll(),
+        staffAPI.getAll(),
       ]);
       setProducts(productsRes.data.data.products || []);
       setCustomers(customersRes.data.data.customers || []);
       setAreas(areasRes.data || []);
+      setStaff(staffRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -71,7 +75,9 @@ export default function POSPage() {
         product,
         qtyInUnits: 1, // Quantity in product's unit (e.g., 1 box)
         totalPcs: pcsPerUnit, // Total pieces (e.g., 20 pieces if 1 box = 20 pcs)
-        price: product.sellingPrice
+        price: product.sellingPrice,
+        paidQty: pcsPerUnit,  // Default: all pieces are paid
+        freeQty: 0            // Default: no free items
       }]);
     }
   };
@@ -84,10 +90,13 @@ export default function POSPage() {
     setCart(cart.map((item) => {
       if (item.product._id === productId) {
         const pcsPerUnit = item.product.pcsPerUnit || 1;
+        const newTotalPcs = newQtyInUnits * pcsPerUnit;
         return {
           ...item,
           qtyInUnits: newQtyInUnits,
-          totalPcs: newQtyInUnits * pcsPerUnit
+          totalPcs: newTotalPcs,
+          paidQty: newTotalPcs,  // Reset to all paid when quantity changes
+          freeQty: 0
         };
       }
       return item;
@@ -96,6 +105,37 @@ export default function POSPage() {
 
   const removeFromCart = (productId) => {
     setCart(cart.filter((item) => item.product._id !== productId));
+  };
+
+  // Update price for a cart item (flexible pricing)
+  const updatePrice = (productId, newPrice) => {
+    const price = parseFloat(newPrice) || 0;
+    setCart(cart.map((item) => {
+      if (item.product._id === productId) {
+        return { ...item, price };
+      }
+      return item;
+    }));
+  };
+
+  // Update scheme (paid/free quantities) for a cart item
+  const updateScheme = (productId, paidQty, freeQty) => {
+    setCart(cart.map((item) => {
+      if (item.product._id === productId) {
+        const paid = parseInt(paidQty) || 0;
+        const free = parseInt(freeQty) || 0;
+        const totalPcs = paid + free;
+        const pcsPerUnit = item.product.pcsPerUnit || 1;
+        return {
+          ...item,
+          paidQty: paid,
+          freeQty: free,
+          totalPcs: totalPcs,
+          qtyInUnits: Math.ceil(totalPcs / pcsPerUnit)
+        };
+      }
+      return item;
+    }));
   };
 
   const handleCustomerChange = (customerId) => {
@@ -146,7 +186,8 @@ export default function POSPage() {
   };
 
   const calculateTotals = () => {
-    const grossTotal = cart.reduce((sum, item) => sum + item.price * item.totalPcs, 0);
+    // Calculate gross using paidQty only (for free product scheme)
+    const grossTotal = cart.reduce((sum, item) => sum + item.price * (item.paidQty || item.totalPcs), 0);
     let discountAmount = 0;
 
     if (discountType === "percentage") {
@@ -182,6 +223,8 @@ export default function POSPage() {
           unit: item.product.unit,
           pcsPerUnit: item.product.pcsPerUnit || 1,
           unitPrice: item.price,
+          paidQty: item.paidQty || item.totalPcs,  // Paid quantity for billing
+          freeQty: item.freeQty || 0               // Free quantity (scheme)
         })),
         discountAmount: totals.discountAmount,
         paymentMethod,
@@ -192,13 +235,14 @@ export default function POSPage() {
         customerNo,
         area,
         deliveredBy,
-        deliveredByNo: deliveredByNo ? parseInt(deliveredByNo) : null,
+        deliveredByNo: deliveredByNo || null,
         bookedBy,
-        orderByNo: orderByNo ? parseInt(orderByNo) : null,
+        orderByNo: orderByNo || null,
         licenseNo,
         cnic,
         orderNo,
-        dueDate: dueDate || null
+        dueDate: dueDate || null,
+        invoiceDate: invoiceDate || new Date().toISOString().split('T')[0], // Custom invoice date
       };
 
       const response = await saleAPI.create(saleData);
@@ -433,24 +477,24 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
               <table>
                 <thead>
                   <tr>
-                    <th style="width: 30%;">Item</th>
+                    <th style="width: 28%;">Item</th>
+                    <th style="width: 12%;">Trade Price</th>
                     <th style="width: 12%;">Price</th>
                     <th style="width: 10%;">QTY</th>
                     <th style="width: 10%;">CTN</th>
                     <th style="width: 10%;">PCS</th>
-                    <th style="width: 10%;">KG</th>
                     <th style="width: 18%;">Total Price</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${items.map(item => `
                     <tr>
-                      <td>${item.name}</td>
+                      <td>${item.name}${item.scheme ? ` <strong style="color: green;">(${item.scheme})</strong>` : ''}</td>
+                      <td class="text-right">Rs ${(item.costPrice || 0).toFixed(2)}</td>
                       <td class="text-right">Rs ${item.unitPrice.toFixed(2)}</td>
-                      <td class="text-center">${item.qty}</td>
+                      <td class="text-center">${item.scheme ? `${item.paidQty}+${item.freeQty}` : item.qty}</td>
                       <td class="text-center">${item.unit === 'CTN' || item.unit === 'BOX' ? item.qtyInUnits || 0 : 0}</td>
-                      <td class="text-center">${item.unit === 'PCS' ? item.qty : 0}</td>
-                      <td class="text-center">${item.unit === 'KG' ? item.qtyInUnits || 0 : 0}</td>
+                      <td class="text-center">${item.scheme ? `${item.paidQty}+${item.freeQty}` : item.qty}</td>
                       <td class="text-right"><strong>Rs ${item.lineTotal.toFixed(2)}</strong></td>
                     </tr>
                   `).join('')}
@@ -501,16 +545,25 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
             </p>
           </div>
 
-  <script>
-    window.print();
-    window.onafterprint = () => window.close();
-  </script>
-
-</body>
-</html>
   `);
 
     printWindow.document.close();
+
+    // Wait for content to render before printing
+    setTimeout(() => {
+      if (printWindow) {
+        printWindow.focus();
+        printWindow.print();
+        // create a listener or just let user close? 
+        // Better to not auto-close immediately after print call as it might close before dialog
+        // often print() blocks in browsers, but in Electron it might not.
+        // Let's rely on user closing or set a long timeout, or better, just leave it open for user to close?
+        // Actually, typical flow is print -> close.
+        // But auto-closing can result in "preview failed".
+        // Let's try JUST printing and allow user to close, OR auto-close after a delay if safe.
+        // For now, removing auto-close to ensure printing works.
+      }
+    }, 500);
   };
 
 
@@ -598,30 +651,15 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
               ) : (
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {cart.map((item) => (
-                    <div key={item.product._id} className="flex items-center gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{item.product.name}</p>
-                        <p className="text-xs text-zinc-500">
-                          {formatCurrency(item.price)} × {item.qtyInUnits} {item.product.unit}
-                          {item.product.pcsPerUnit > 1 && ` (${item.totalPcs} pcs)`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.product._id, item.qtyInUnits - 1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm">{item.qtyInUnits}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateQuantity(item.product._id, item.qtyInUnits + 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                    <div key={item.product._id} className="flex flex-col gap-2 rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{item.product.name}</p>
+                          <p className="text-xs text-zinc-500">
+                            {formatCurrency(item.price)} × {item.qtyInUnits} {item.product.unit}
+                            {item.product.pcsPerUnit > 1 && ` (${item.totalPcs} pcs)`}
+                          </p>
+                        </div>
                         <Button
                           size="sm"
                           variant="destructive"
@@ -629,6 +667,77 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Quantity Controls */}
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateQuantity(item.product._id, item.qtyInUnits - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.qtyInUnits}
+                            onChange={(e) => updateQuantity(item.product._id, parseInt(e.target.value) || 1)}
+                            className="w-14 text-center text-sm h-8 px-1"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateQuantity(item.product._id, item.qtyInUnits + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        {/* Price Override */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-zinc-500">Rs</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(e) => updatePrice(item.product._id, e.target.value)}
+                            className="w-20 text-center text-sm h-8 px-1"
+                            title="Override price per unit"
+                          />
+                        </div>
+                      </div>
+                      {/* Scheme row (Paid + Free) */}
+                      <div className="flex items-center gap-2 mt-1 border-t border-zinc-100 pt-2 dark:border-zinc-700">
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">Scheme:</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-zinc-500">Paid:</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.paidQty || item.totalPcs}
+                            onChange={(e) => updateScheme(item.product._id, e.target.value, item.freeQty || 0)}
+                            className="w-14 text-center text-sm h-7 px-1"
+                            title="Paid quantity"
+                          />
+                        </div>
+                        <span className="text-xs font-bold">+</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-zinc-500">Free:</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.freeQty || 0}
+                            onChange={(e) => updateScheme(item.product._id, item.paidQty || item.totalPcs, e.target.value)}
+                            className="w-14 text-center text-sm h-7 px-1 border-green-300 dark:border-green-700"
+                            title="Free quantity"
+                          />
+                        </div>
+                        {item.freeQty > 0 && (
+                          <Badge variant="success" className="text-xs">
+                            {item.paidQty}+{item.freeQty}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -672,9 +781,9 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
                     onChange={(e) => {
                       setSelectedArea(e.target.value);
                       setSelectedCustomer(""); // Reset customer when area changes
-                      // Clear fields
+                      // Set the area field to the selected area (for the sale)
+                      setArea(e.target.value);
                       setCustomerNo("");
-                      setArea("");
                       setCnic("");
                       setLicenseNo("");
                     }}
@@ -700,11 +809,28 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
                       .filter((c) => !selectedArea || c.area === selectedArea)
                       .map((customer) => (
                         <option key={customer._id} value={customer._id}>
-                          {customer.name}
+                          {customer.name} {customer.runningBalance > 0 ? `(Bal: Rs ${customer.runningBalance})` : ''}
                         </option>
                       ))}
                   </Select>
                 </div>
+
+                {/* Show Previous Balance for selected customer */}
+                {selectedCustomer && (() => {
+                  const customer = customers.find(c => c._id === selectedCustomer);
+                  const balance = customer?.runningBalance || 0;
+                  if (balance > 0) {
+                    return (
+                      <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-900/20 dark:border-amber-800">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-amber-800 dark:text-amber-200">Previous Balance:</span>
+                          <span className="text-lg font-bold text-amber-800 dark:text-amber-200">{formatCurrency(balance)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -730,22 +856,44 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-2">
-                  <Label htmlFor="deliveredBy">Delivered By</Label>
-                  <Input
+                  <Label htmlFor="deliveredBy">Delivered By (Salesman)</Label>
+                  <Select
                     id="deliveredBy"
                     value={deliveredBy}
-                    onChange={(e) => setDeliveredBy(e.target.value)}
-                    placeholder="Delivery person name"
-                  />
+                    onChange={(e) => {
+                      const selectedName = e.target.value;
+                      setDeliveredBy(selectedName);
+                      const s = staff.find(st => st.name === selectedName);
+                      if (s) setDeliveredByNo(s.phone || "");
+                    }}
+                  >
+                    <option value="">Select Salesman</option>
+                    {staff.filter(s => s.role === 'salesman').map((s) => (
+                      <option key={s._id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="bookedBy">Booked By</Label>
-                  <Input
+                  <Label htmlFor="bookedBy">Booked By (Order Booker)</Label>
+                  <Select
                     id="bookedBy"
                     value={bookedBy}
-                    onChange={(e) => setBookedBy(e.target.value)}
-                    placeholder="Booked by"
-                  />
+                    onChange={(e) => {
+                      const selectedName = e.target.value;
+                      setBookedBy(selectedName);
+                      const s = staff.find(st => st.name === selectedName);
+                      if (s) setOrderByNo(s.phone || "");
+                    }}
+                  >
+                    <option value="">Select Order Booker</option>
+                    {staff.filter(s => s.role === 'order_booker').map((s) => (
+                      <option key={s._id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
 
@@ -812,6 +960,23 @@ ${Object.entries(printData.categorizedItems || {}).map(([category, items]) => `
                     onChange={(e) => setDueDate(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Invoice Date Control */}
+              <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                <Label htmlFor="invoiceDate" className="text-blue-800 dark:text-blue-200">
+                  Invoice Date
+                </Label>
+                <Input
+                  id="invoiceDate"
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="border-blue-300 dark:border-blue-700"
+                />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Defaults to today. Select a different date if creating a bill for another day.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

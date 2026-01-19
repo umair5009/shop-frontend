@@ -23,6 +23,12 @@ export default function AreasPage() {
     const [currentArea, setCurrentArea] = useState(null);
     const [formData, setFormData] = useState({ name: "" });
 
+    // Dialog States
+    const [deleteId, setDeleteId] = useState(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
+    const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+
     useEffect(() => {
         fetchAreas();
     }, []);
@@ -52,17 +58,27 @@ export default function AreasPage() {
             fetchAreas();
         } catch (error) {
             console.error("Failed to save area", error);
-            alert(error.response?.data?.message || "Failed to save area");
+            setErrorMessage(error.response?.data?.message || "Failed to save area");
+            setErrorDialogOpen(true);
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm("Are you sure you want to delete this area?")) return;
+    const handleDeleteClick = (id) => {
+        setDeleteId(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const confirmDelete = async () => {
         try {
-            await areaAPI.delete(id);
+            await areaAPI.delete(deleteId);
             fetchAreas();
         } catch (error) {
             console.error("Failed to delete area", error);
+            setErrorMessage("Failed to delete area");
+            setErrorDialogOpen(true);
+        } finally {
+            setDeleteDialogOpen(false);
+            setDeleteId(null);
         }
     };
 
@@ -143,7 +159,7 @@ export default function AreasPage() {
                                             <Button variant="ghost" size="icon" onClick={() => openEdit(area)}>
                                                 <Pencil className="h-4 w-4 text-blue-500" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(area._id)}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(area._id)}>
                                                 <Trash2 className="h-4 w-4 text-red-500" />
                                             </Button>
                                         </TableCell>
@@ -154,6 +170,33 @@ export default function AreasPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Delete</DialogTitle>
+                    </DialogHeader>
+                    <p>Are you sure you want to delete this area? This action cannot be undone.</p>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                        <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Error/Info Dialog */}
+            <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Info</DialogTitle>
+                    </DialogHeader>
+                    <p>{errorMessage}</p>
+                    <div className="flex justify-end mt-4">
+                        <Button onClick={() => setErrorDialogOpen(false)}>OK</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
